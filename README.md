@@ -53,15 +53,15 @@ Some useful information:
 - Choose the DOM element and the margin
 	`screenshotDOMElement('table', 16);`
 -  Make the viewport large enough and set the deviceScaleFactor higher for better quality.
-		"""
+	```
 	       await page.setViewport({
 	            width: 960,
 	            height: 1080,
 	            deviceScaleFactor: 1//5
 	          });
-          """
+          ```
 - Something weird... The *2 fixed some problem but I don't think it makes sense.
-         """
+         ```
 	         return await page.screenshot({
 	            path: 'img/'+name+'.png',
 	            clip: {
@@ -71,7 +71,7 @@ Some useful information:
 	              height: rect.height + padding
 	            }
 	          });
-          """
+          ```
 
 ## Authors
 
