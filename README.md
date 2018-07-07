@@ -1,13 +1,9 @@
-# Scratch Exercises
-
-Scratch exercises made with [scratch-LN](https://github.com/scratch4d/scratch-LN).
-
-Write scratch exercises in markdown.
-
-The exercises are then avaible in web form or in pdf form. 
-
-Scripts for: *markdown -> html -> pdf*
-
+# Scripts
+Scripts for:
+- *markdown -> html*
+- *html -> pdf*
+- *html -> png*
+The [scratch-LN](https://github.com/scratch4d/scratch-LN) library is included.
 
 ## Developping 
 
