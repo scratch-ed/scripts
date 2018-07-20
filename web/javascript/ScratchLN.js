@@ -64,7 +64,7 @@ var scratchLN =
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 78);
+/******/ 	return __webpack_require__(__webpack_require__.s = 80);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -1545,11 +1545,11 @@ var tokens_public_1 = __webpack_require__(3);
 var exceptions_public_1 = __webpack_require__(36);
 var version_1 = __webpack_require__(29);
 var errors_public_1 = __webpack_require__(24);
-var render_public_1 = __webpack_require__(52);
+var render_public_1 = __webpack_require__(53);
 var gast_visitor_public_1 = __webpack_require__(6);
 var gast_public_1 = __webpack_require__(1);
 var gast_resolver_public_1 = __webpack_require__(38);
-var generate_public_1 = __webpack_require__(54);
+var generate_public_1 = __webpack_require__(55);
 /**
  * defines the public API of
  * changes here may require major version change. (semVer)
@@ -3284,7 +3284,7 @@ const StringLiteral = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0_chevrota
 const NumberLiteral = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0_chevrotain__["createToken"])({
     name: "NumberLiteral",
     pattern: /-?(\d+)(\.\d+)?/,
-    categories: [Literal],
+    categories: [Literal,Label],
     longer_alt: Label,
 });
 /* harmony export (immutable) */ __webpack_exports__["NumberLiteral"] = NumberLiteral;
@@ -3383,7 +3383,7 @@ const End = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0_chevrotain__["crea
 
 const Modifier = __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0_chevrotain__["createToken"])({
     name: "Modifier",
-    pattern: /::((:(?!:))|[^\{\|\(\)<>\\#@: \t\n]|\\[^])([ \t]*((:(?!:))|[^\|\(\)<>\\#@: \t]|\\[^]))*/
+    pattern: /::((:(?!:))|[^\{\|\(\)<>\\#@: \t\n]|\\[^])([ \t]*((:(?!:))|[^\|\(\)<>\\#@: \t\n]|\\[^]))*/
 });
 /* harmony export (immutable) */ __webpack_exports__["Modifier"] = Modifier;
 
@@ -4350,16 +4350,16 @@ var exceptions_public_1 = __webpack_require__(36);
 var lang_extensions_1 = __webpack_require__(5);
 var checks_1 = __webpack_require__(8);
 var utils_1 = __webpack_require__(0);
-var follow_1 = __webpack_require__(57);
+var follow_1 = __webpack_require__(58);
 var tokens_public_1 = __webpack_require__(3);
 var lookahead_1 = __webpack_require__(40);
-var gast_builder_1 = __webpack_require__(56);
+var gast_builder_1 = __webpack_require__(57);
 var interpreter_1 = __webpack_require__(25);
 var constants_1 = __webpack_require__(34);
 var tokens_1 = __webpack_require__(10);
 var cst_1 = __webpack_require__(35);
 var keys_1 = __webpack_require__(39);
-var cst_visitor_1 = __webpack_require__(55);
+var cst_visitor_1 = __webpack_require__(56);
 var errors_public_1 = __webpack_require__(24);
 var gast_public_1 = __webpack_require__(1);
 var gast_resolver_public_1 = __webpack_require__(38);
@@ -6049,7 +6049,7 @@ InRuleRecoveryException.prototype = Error.prototype;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var lexer_1 = __webpack_require__(59);
+var lexer_1 = __webpack_require__(60);
 var utils_1 = __webpack_require__(0);
 var tokens_1 = __webpack_require__(10);
 var LexerDefinitionErrorType;
@@ -7459,21 +7459,30 @@ function makeArgument(ctx, visitor, arg, i) {
 }
 
 function universalBlockConverter(ctx, visitor, structure) {
-    addType(ctx,visitor,structure.type);
+    if (structure.shape === "hatblock") {
+        visitor.interruptStack();
+    }
+    addType(ctx, visitor, structure.type);
     for (let i = 0; ctx.argument && i < ctx.argument.length; i++) {
         let arg = structure.args[i];
         makeArgument(ctx, visitor, arg, i);
     }
-
+    if (structure.shape === "hatblock") {
+        visitor.startStack();
+    }
+    if (structure.shape === "capblock") {
+        visitor.interruptStack();
+    }
 }
 
 
-function addType(ctx,visitor,type) {
+function addType(ctx, visitor, type) {
+    let blockid = visitor.idManager.getNextBlockID(visitor.infoVisitor.getID(ctx, "atomic"));
     visitor.xml = visitor.xml.ele('block', {
-        'id': visitor.idManager.getNextBlockID(visitor.infoVisitor.getID(ctx, "atomic")),
+        'id': blockid,
         'type': type
     });
-    //todo add to state
+    visitor.state.addBlock(blockid);
 };
 
 //=======================================================================================================================================
@@ -7481,7 +7490,7 @@ function addType(ctx,visitor,type) {
 //=======================================================================================================================================
 
 function variableBlockConverter(ctx, visitor, structure) {
-    addType(ctx,visitor,structure.type);
+    addType(ctx, visitor, structure.type);
     //name of the variable
     let varble = visitor.infoVisitor.getString(ctx.argument[0]);
     //function must be called to register VariableID
@@ -7489,9 +7498,11 @@ function variableBlockConverter(ctx, visitor, structure) {
     visitor.xml = visitor.xml.ele('field', {
         'name': 'VARIABLE'
     }, varble);
-    visitor.xml = visitor.xml.up().ele('value', {
-        'name': 'VALUE'
-    });
+    if(structure.args.length>1) {
+        visitor.xml = visitor.xml.up().ele('value', {
+            'name': 'VALUE'
+        });
+    }
     //the second argument.
     visitor.visit(ctx.argument[1]);
     visitor.xml = visitor.xml.up();
@@ -7499,7 +7510,7 @@ function variableBlockConverter(ctx, visitor, structure) {
 
 //todo
 function listBlockConverter(ctx, visitor, structure) {
-    addType(ctx,visitor,structure.type);
+    addType(ctx, visitor, structure.type);
     for (let i = 0; i < ctx.argument.length; i++) {
         let arg = structure.args[i];
         if (arg.name === 'LIST') {
@@ -7517,8 +7528,8 @@ function listBlockConverter(ctx, visitor, structure) {
 }
 
 //todo
-function messageShadowBlockconverter(ctx, visitor,structure) {
-    addType(ctx,visitor,structure.type);
+function messageShadowBlockconverter(ctx, visitor, structure) {
+    addType(ctx, visitor, structure.type);
     let varble = visitor.infoVisitor.getString(ctx.argument[0]);
     let arg = structure.args[0];
     let id = visitor.idManager.acquireVariableID(varble, __WEBPACK_IMPORTED_MODULE_0__IDManager__["b" /* BROADCAST */]);
@@ -7530,15 +7541,18 @@ function messageShadowBlockconverter(ctx, visitor,structure) {
         'type': "event_broadcast_menu"
     }).ele('field', {
         'name': 'BROADCAST_OPTION',
-        'variabletype':"broadcast_msg",
-        'id':id
+        'variabletype': "broadcast_msg",
+        'id': id
     }, varble);
     visitor.xml = visitor.xml.up();
 }
 
-//todo
-function messageBlockconverter(ctx, visitor,structure) {
-    addType(ctx,visitor,structure.type);
+// "when I receive %1"
+function messageBlockconverter(ctx, visitor, structure) {
+    if (structure.shape === "hatblock") {
+        visitor.interruptStack();
+    }
+    addType(ctx, visitor, structure.type);
 
     let varble = visitor.infoVisitor.getString(ctx.argument[0]);
     let arg = structure.args[0];
@@ -7546,19 +7560,22 @@ function messageBlockconverter(ctx, visitor,structure) {
 
     visitor.xml.ele('field', {
         'name': "BROADCAST_OPTION",
-        'variabletype':"broadcast_msg",
-        'id':id
+        'variabletype': "broadcast_msg",
+        'id': id
     }, varble);
-
+    if (structure.shape === "hatblock") {
+        visitor.startStack();
+    }
 }
 
 //todo
-function stopConverter(ctx, visitor,structure) {
-    addType(ctx,visitor,structure.type);
+function stopConverter(ctx, visitor, structure) {
+    addType(ctx, visitor, structure.type);
     visitor.xml = visitor.xml.ele('field', {
         'name': "STOP_OPTION"
     }, visitor.infoVisitor.getString(ctx.argument[0]));
     visitor.xml = visitor.xml.up();
+    visitor.interruptStack();
 }
 
 /***/ }),
@@ -7857,7 +7874,7 @@ exports.firstForTerminal = firstForTerminal;
 Object.defineProperty(exports, "__esModule", { value: true });
 var utils_1 = __webpack_require__(0);
 var lang_extensions_1 = __webpack_require__(5);
-var resolver_1 = __webpack_require__(58);
+var resolver_1 = __webpack_require__(59);
 var checks_1 = __webpack_require__(8);
 var errors_public_1 = __webpack_require__(24);
 var gast_1 = __webpack_require__(9);
@@ -9371,7 +9388,7 @@ var __WEBPACK_AMD_DEFINE_FACTORY__, __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_
 /* 42 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(66);
+module.exports = __webpack_require__(67);
 
 
 /***/ }),
@@ -9932,11 +9949,16 @@ class InfoLNVisitor extends BaseCstVisitor {
         }
 
         return {
-            TEXT: this.getTextAtomic(ctx),
+            TEXT: this.unescapeLabel(this.getTextAtomic(ctx)),
             OFFSET: offset,
             TYPE: ATOMIC,
             ID: this.visit(ctx.annotations).ID
         }
+    }
+
+    unescapeLabel(text){
+        //replace a \ followed by a not nothing character by only the character
+        return text.replace(/\\([^])/g, '$1');
     }
 
     /**
@@ -9985,7 +10007,6 @@ class InfoLNVisitor extends BaseCstVisitor {
         //text = text.replace(/ +(?=[\%][^sbn])/g, '');
         //remove spaces at beginning and end
         text = text.trim();
-        //todo: unescape shizzle
 
         return text;
     }
@@ -10075,7 +10096,7 @@ class InfoLNVisitor extends BaseCstVisitor {
 
 
     unescapeComment(text) {
-        return text.replace(/\\\|/g, '|').replace(/^\|(.*(?=\|$))\|$/, '$1');
+        return text.replace(/\\([^])/g, '$1').replace(/^\|(.*(?=\|$))\|$/, '$1');
     }
 
     annotations(ctx) {
@@ -10141,11 +10162,11 @@ class InfoLNVisitor extends BaseCstVisitor {
     }
 
     unescapeStringLiteral(text) {
-        return text.replace(/\\"/g, '"').replace(/^"(.*(?="$))"$/, '$1');
+        return text.replace(/\\([^])/g, '$1').replace(/^"(.*(?="$))"$/, '$1');
     }
 
     unescapeChoiceLiteral(text) {
-        return text.replace(/\\\[/g, '"').replace(/^\[(.*(?=\]$))\]$/, '$1');
+        return text.replace(/\\([^])/g, '$1').replace(/^\[(.*(?=\]$))\]$/, '$1');
     }
 
     /**
@@ -10255,6 +10276,24 @@ class InfoLNVisitor extends BaseCstVisitor {
 
 /***/ }),
 /* 48 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/**
+ * config.
+ *
+ * Configuration parameters for developers
+ *
+ * @file   This files defines the consts.
+ * @author Ellen Vanhove.
+ */
+
+const MEDIA = '/static/blocks-media/';
+/* harmony export (immutable) */ __webpack_exports__["a"] = MEDIA;
+
+
+/***/ }),
+/* 49 */
 /***/ (function(module, exports, __webpack_require__) {
 
 var __WEBPACK_AMD_DEFINE_ARRAY__, __WEBPACK_AMD_DEFINE_RESULT__;/*!
@@ -20625,14 +20664,14 @@ return jQuery;
 
 
 /***/ }),
-/* 49 */
+/* 50 */
 /***/ (function(module, exports, __webpack_require__) {
 
-module.exports = __webpack_require__(63);
+module.exports = __webpack_require__(64);
 
 
 /***/ }),
-/* 50 */
+/* 51 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -20640,8 +20679,8 @@ module.exports = __webpack_require__(63);
 /* harmony export (immutable) */ __webpack_exports__["a"] = parseTextToXML;
 /* unused harmony export parseTextToXMLWithWarnings */
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0__LNParser__ = __webpack_require__(32);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__XMLLNVisitor__ = __webpack_require__(76);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__blockspecification_blockspecification__ = __webpack_require__(51);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__XMLLNVisitor__ = __webpack_require__(77);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__blockspecification_blockspecification__ = __webpack_require__(52);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__blocks__ = __webpack_require__(33);
 /**
  * Provide high level function to transform text to XML
@@ -20770,7 +20809,7 @@ function parseTextToXMLWithWarnings(text) {
 
 
 /***/ }),
-/* 51 */
+/* 52 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -20798,7 +20837,7 @@ function parseTextToXMLWithWarnings(text) {
 // some frequently used predicates
 
 let looksSoundPredicate = function (ctx, visitor) {
-    let opt = ctx.option?visitor.infoVisitor.getString(ctx.option[0]):'';
+    let opt = ctx.option ? visitor.infoVisitor.getString(ctx.option[0]) : '';
     let label = visitor.infoVisitor.getString(ctx.argument[0]);
     return (opt === 'sound') || (label === "pan left/right" || label === 'pitch');
 };
@@ -20927,7 +20966,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "%1 \\< %2",
+            "template": ["%1 lt %2", "%1 < %2", "%1 less than %2"],
             "description": {
                 "type": "operator_lt",
                 "args": [{"type": "input_value", "name": "OPERAND1"}, {"type": "input_value", "name": "OPERAND2"}],
@@ -20945,7 +20984,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "%1 \\> %2",
+            "template": ["%1 gt %2", "%1 > %2", "%1 greater than %2"],
             "description": {
                 "type": "operator_gt",
                 "args": [{"type": "input_value", "name": "OPERAND1"}, {"type": "input_value", "name": "OPERAND2"}],
@@ -21055,7 +21094,7 @@ const blockspecifications = [
         },
 //=== sensing ===============================================================
         {
-            "template": "touching %1?",
+            "template": ["touching %1?", "touching %1"],
             "description": {
                 "type": "sensing_touchingobject",
                 "args": [{"type": "input_value", "name": "TOUCHINGOBJECTMENU", "menu": "sensing_touchingobjectmenu"}],
@@ -21064,7 +21103,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "touching color %1?",
+            "template": ["touching color %1?", "touching color %1"],
             "description": {
                 "type": "sensing_touchingcolor",
                 "args": [{"type": "input_value", "name": "COLOR"}],
@@ -21073,7 +21112,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "color %1 is touching %2?",
+            "template": ["color %1 is touching %2?", "color %1 is touching %2"],
             "description": {
                 "type": "sensing_coloristouchingcolor",
                 "args": [{"type": "input_value", "name": "COLOR"}, {"type": "input_value", "name": "COLOR2"}],
@@ -21105,20 +21144,21 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "key %1 pressed?",
+            "template": ["key %1 pressed?", "key %1 pressed"],
             "description": {
                 "type": "sensing_keypressed",
                 "args": [{
-                    "type": "field_dropdown",
+                    "type": "input_value",
                     "name": "KEY_OPTION",
-                    "options": [["space", "space"], ["left arrow", "left arrow"], ["right arrow", "right arrow"], ["down arrow", "down arrow"], ["up arrow", "up arrow"], ["any", "any"], ["a", "a"], ["b", "b"], ["c", "c"], ["d", "d"], ["e", "e"], ["f", "f"], ["g", "g"], ["h", "h"], ["i", "i"], ["j", "j"], ["k", "k"], ["l", "l"], ["m", "m"], ["n", "n"], ["o", "o"], ["p", "p"], ["q", "q"], ["r", "r"], ["s", "s"], ["t", "t"], ["u", "u"], ["v", "v"], ["w", "w"], ["x", "x"], ["y", "y"], ["z", "z"], ["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"], ["6", "6"], ["7", "7"], ["8", "8"], ["9", "9"]]
+                    "options": [["space", "space"], ["left arrow", "left arrow"], ["right arrow", "right arrow"], ["down arrow", "down arrow"], ["up arrow", "up arrow"], ["any", "any"], ["a", "a"], ["b", "b"], ["c", "c"], ["d", "d"], ["e", "e"], ["f", "f"], ["g", "g"], ["h", "h"], ["i", "i"], ["j", "j"], ["k", "k"], ["l", "l"], ["m", "m"], ["n", "n"], ["o", "o"], ["p", "p"], ["q", "q"], ["r", "r"], ["s", "s"], ["t", "t"], ["u", "u"], ["v", "v"], ["w", "w"], ["x", "x"], ["y", "y"], ["z", "z"], ["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"], ["5", "5"], ["6", "6"], ["7", "7"], ["8", "8"], ["9", "9"]],
+                    "menu": "sensing_keyoptions"
                 }],
                 "shape": "booleanblock"
             },
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "mouse down?",
+            "template": ["mouse down?", "mouse down"],
             "description": {"type": "sensing_mousedown", "shape": "booleanblock"},
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
@@ -21223,7 +21263,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": ["turn cw %1 degrees", "turn right %1 degrees"],
+            "template": ["turn right %1 degrees", "turn cw %1 degrees", "turn clockwise %1 degrees", "turn \u21BB %1 degrees"],
             "description": {
                 "type": "motion_turnright",
                 "args": [{"type": "input_value", "name": "DEGREES"}],
@@ -21232,7 +21272,8 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": ["turn ccw %1 degrees", "turn left %1 degrees"],
+            "template": ["turn left %1 degrees", "turn ccw %1 degrees", "turn counterclockwise %1 degrees",
+                "turn anticlockwise %1 degrees", "turn acw %1 degrees", "turn \u21BA %1 degrees",],
             "description": {
                 "type": "motion_turnleft",
                 "args": [{"type": "input_value", "name": "DEGREES"}],
@@ -21312,7 +21353,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": ["bounce on edge","if on edge, bounce"],
+            "template": ["if on edge, bounce","bounce on edge"],
             "description": {"type": "motion_ifonedgebounce", "shape": "statement"},
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
@@ -21601,47 +21642,8 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "play drum %1 for %2 beats",
-            "description": {
-                "type": "sound_playdrumforbeats",
-                "args": [{"type": "input_value", "name": "DRUM", "menu": "sound_drums_menu"}, {
-                    "type": "input_value",
-                    "name": "BEATS"
-                }],
-                "shape": "statement"
-            },
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
-            "template": "rest for %1 beats",
-            "description": {
-                "type": "sound_restforbeats",
-                "args": [{"type": "input_value", "name": "BEATS"}],
-                "shape": "statement"
-            },
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
-            "template": "play note %1 for %2 beats",
-            "description": {
-                "type": "sound_playnoteforbeats",
-                "args": [{"type": "input_value", "name": "NOTE"}, {"type": "input_value", "name": "BEATS"}],
-                "shape": "statement"
-            },
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
             "template": "clear sound effects",
             "description": {"type": "sound_cleareffects", "shape": "statement"},
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
-            "template": "set instrument to %1",
-            "description": {
-                "type": "sound_setinstrumentto",
-                "args": [{"type": "input_value", "name": "INSTRUMENT", "menu": "sound_instruments_menu"}],
-                "shape": "statement"
-            },
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
@@ -21667,32 +21669,9 @@ const blockspecifications = [
             "description": {"type": "sound_volume", "shape": "reporterblock"},
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
-        {
-            "template": "change tempo by %1",
-            "description": {
-                "type": "sound_changetempoby",
-                "args": [{"type": "input_value", "name": "TEMPO"}],
-                "shape": "statement"
-            },
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
-            "template": "set tempo to %1 bpm",
-            "description": {
-                "type": "sound_settempotobpm",
-                "args": [{"type": "input_value", "name": "TEMPO"}],
-                "shape": "statement"
-            },
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
-        {
-            "template": "tempo",
-            "description": {"type": "sound_tempo", "shape": "reporterblock"},
-            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
-        },
         //=== events =============================================================
         {
-            "template": ["when gf clicked", "when greenflag clicked"],
+            "template": ["when gf clicked", "when greenflag clicked", "when green flag clicked", "when \u2691 clicked", "when flag clicked",],
             "description": {"type": "event_whenflagclicked", "args": [], "shape": "hatblock"},
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
@@ -21711,7 +21690,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "when %1 \\> %2",
+            "template": ["when %1 gt %2", "when %1 greater than %2", "when %1 > %2"],
             "description": {
                 "type": "event_whengreaterthan",
                 "args": [{
@@ -21756,8 +21735,7 @@ const blockspecifications = [
         {
             "template": "set %1 effect to %2",
             "description": {
-                "type"
-                    : "looks_seteffectto",
+                "type": "looks_seteffectto",
                 "args": [{
                     "type": "field_dropdown",
                     "name": "EFFECT",
@@ -21813,7 +21791,7 @@ const blockspecifications = [
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["b" /* universalBlockConverter */]
         },
         {
-            "template": "%1 contains %2?",
+            "template": ["%1 contains %2?", "%1 contains %2"],
             "description": {
                 "type": "data_listcontainsitem",
                 "args": [{"type": "field_variable", "name": "LIST", "variabletypes": ["list"]}, {
@@ -21826,7 +21804,7 @@ const blockspecifications = [
             "predicate": listOperatorPredicate
         },
         {
-            "template": "%1 contains %2?",
+            "template": ["%1 contains %2?", "%1 contains %2"],
             "description": {
                 "type": "operator_contains",
                 "args": [{"type": "input_value", "name": "STRING1"}, {"type": "input_value", "name": "STRING2"}],
@@ -21843,12 +21821,12 @@ const blockspecifications = [
                     "name": "PROPERTY",
                     "options": [["x position", "x position"], ["y position", "y position"], ["direction", "direction"], ["costume #", "costume #"], ["costume name", "costume name"], ["size", "size"], ["volume", "volume"], ["backdrop #", "backdrop #"], ["backdrop name", "backdrop name"]],
 
-                }, {"type": "input_value", "name": "OBJECT",'menu': 'sensing_of_object_menu'}],
+                }, {"type": "input_value", "name": "OBJECT", 'menu': 'sensing_of_object_menu'}],
                 "shape": "booleans"
             },
             "converter": function (ctx, visitor) {
                 //something was weird here...
-                __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__parser_blocks__["d" /* addType */])(ctx,visitor,'sensing_of')
+                __webpack_require__.i(__WEBPACK_IMPORTED_MODULE_0__parser_blocks__["d" /* addType */])(ctx, visitor, 'sensing_of')
                 visitor.xml = visitor.xml.ele('field', {
                     'name': 'PROPERTY'
                 }, visitor.infoVisitor.getString(ctx.argument[0])); //'all around' //this is ugly because 'option' is the only one that returns something... and there is no check whether the option is existing and valid
@@ -21932,7 +21910,24 @@ const blockspecifications = [
             },
             "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["g" /* variableBlockConverter */]
         },
-
+        {
+            "template": "show variable %1",
+            "description": {
+                "type": "data_showvariable",
+                "args": [{"type": "field_variable","name": "VARIABLE"}],
+                "shape": "statement"
+            },
+            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["g" /* variableBlockConverter */]
+        },
+        {
+            "template": "hide variable %1",
+            "description": {
+                "type": "data_hidevariable",
+                "args": [{"type": "field_variable","name": "VARIABLE"}],
+                "shape": "statement"
+            },
+            "converter": __WEBPACK_IMPORTED_MODULE_0__parser_blocks__["g" /* variableBlockConverter */]
+        },
         {
             "template": "add %1 to %2",
             "description": {
@@ -22038,7 +22033,7 @@ const blockspecifications = [
 
 
 /***/ }),
-/* 52 */
+/* 53 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22059,7 +22054,7 @@ exports.createSyntaxDiagramsCode = createSyntaxDiagramsCode;
 //# sourceMappingURL=render_public.js.map
 
 /***/ }),
-/* 53 */
+/* 54 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22209,13 +22204,13 @@ function indent(howMuch, text) {
 //# sourceMappingURL=generate.js.map
 
 /***/ }),
-/* 54 */
+/* 55 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var generate_1 = __webpack_require__(53);
+var generate_1 = __webpack_require__(54);
 function generateParserFactory(options) {
     var wrapperText = generate_1.genWrapperFunction({
         name: options.name,
@@ -22236,7 +22231,7 @@ exports.generateParserModule = generateParserModule;
 //# sourceMappingURL=generate_public.js.map
 
 /***/ }),
-/* 55 */
+/* 56 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22371,13 +22366,13 @@ exports.validateRedundantMethods = validateRedundantMethods;
 //# sourceMappingURL=cst_visitor.js.map
 
 /***/ }),
-/* 56 */
+/* 57 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var range_1 = __webpack_require__(61);
+var range_1 = __webpack_require__(62);
 var utils_1 = __webpack_require__(0);
 var gast_public_1 = __webpack_require__(1);
 var ProdType;
@@ -22827,7 +22822,7 @@ exports.deserializeProduction = deserializeProduction;
 //# sourceMappingURL=gast_builder.js.map
 
 /***/ }),
-/* 57 */
+/* 58 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22899,7 +22894,7 @@ exports.buildInProdFollowPrefix = buildInProdFollowPrefix;
 //# sourceMappingURL=follow.js.map
 
 /***/ }),
-/* 58 */
+/* 59 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22961,7 +22956,7 @@ exports.GastRefResolverVisitor = GastRefResolverVisitor;
 //# sourceMappingURL=resolver.js.map
 
 /***/ }),
-/* 59 */
+/* 60 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -22981,7 +22976,7 @@ var regexp_to_ast_1 = __webpack_require__(41);
 var tokens_public_1 = __webpack_require__(3);
 var lexer_public_1 = __webpack_require__(28);
 var utils_1 = __webpack_require__(0);
-var reg_exp_1 = __webpack_require__(60);
+var reg_exp_1 = __webpack_require__(61);
 var regExpParser = new regexp_to_ast_1.RegExpParser();
 var PATTERN = "PATTERN";
 exports.DEFAULT_MODE = "defaultMode";
@@ -23795,7 +23790,7 @@ function getCharCodes(charsOrCodes) {
 //# sourceMappingURL=lexer.js.map
 
 /***/ }),
-/* 60 */
+/* 61 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -23993,7 +23988,7 @@ exports.canMatchCharCode = canMatchCharCode;
 //# sourceMappingURL=reg_exp.js.map
 
 /***/ }),
-/* 61 */
+/* 62 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -24032,11 +24027,11 @@ exports.isValidRange = isValidRange;
 //# sourceMappingURL=range.js.map
 
 /***/ }),
-/* 62 */
+/* 63 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
-var Blockly = __webpack_require__(70);
+var Blockly = __webpack_require__(71);
 var goog = __webpack_require__(30);
 
 /**
@@ -24389,11 +24384,11 @@ module.exports = Blockly;
 
 
 /***/ }),
-/* 63 */
+/* 64 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
-var Blockly = __webpack_require__(69);
+var Blockly = __webpack_require__(70);
 var goog = __webpack_require__(30);
 
 // This file was automatically generated.  Do not modify.
@@ -34347,11 +34342,11 @@ module.exports = Blockly;
 
 
 /***/ }),
-/* 64 */
+/* 65 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
-var Blockly = __webpack_require__(68);
+var Blockly = __webpack_require__(69);
 
 // Do not edit this file; automatically generated by build.py.
 'use strict';
@@ -34395,12 +34390,12 @@ module.exports = Blockly;
 
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
 var goog = __webpack_require__(30);
-var Blockly = __webpack_require__(67);
+var Blockly = __webpack_require__(68);
 
 // Do not edit this file; automatically generated by build.py.
 'use strict';
@@ -34607,7 +34602,7 @@ module.exports = Blockly;
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ (function(module, exports) {
 
 /*** IMPORTS FROM imports-loader ***/
@@ -36770,35 +36765,35 @@ exports["goog"] = (goog);
 }.call(window));
 
 /***/ }),
-/* 67 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = __webpack_require__(64);
-
-
-/***/ }),
 /* 68 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = __webpack_require__(42).Blockly;
-
-
-/***/ }),
-/* 69 */
-/***/ (function(module, exports, __webpack_require__) {
-
-module.exports = __webpack_require__(62);
-
-
-/***/ }),
-/* 70 */
 /***/ (function(module, exports, __webpack_require__) {
 
 module.exports = __webpack_require__(65);
 
 
 /***/ }),
+/* 69 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(42).Blockly;
+
+
+/***/ }),
+/* 70 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(63);
+
+
+/***/ }),
 /* 71 */
+/***/ (function(module, exports, __webpack_require__) {
+
+module.exports = __webpack_require__(66);
+
+
+/***/ }),
+/* 72 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Generated by CoffeeScript 1.12.7
@@ -36852,7 +36847,7 @@ module.exports = __webpack_require__(65);
 
 
 /***/ }),
-/* 72 */
+/* 73 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Generated by CoffeeScript 1.12.7
@@ -37260,7 +37255,7 @@ module.exports = __webpack_require__(65);
 
 
 /***/ }),
-/* 73 */
+/* 74 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Generated by CoffeeScript 1.12.7
@@ -37545,7 +37540,7 @@ module.exports = __webpack_require__(65);
 
 
 /***/ }),
-/* 74 */
+/* 75 */
 /***/ (function(module, exports, __webpack_require__) {
 
 // Generated by CoffeeScript 1.12.7
@@ -37554,13 +37549,13 @@ module.exports = __webpack_require__(65);
 
   ref = __webpack_require__(4), assign = ref.assign, isFunction = ref.isFunction;
 
-  XMLDocument = __webpack_require__(71);
+  XMLDocument = __webpack_require__(72);
 
-  XMLDocumentCB = __webpack_require__(72);
+  XMLDocumentCB = __webpack_require__(73);
 
   XMLStringWriter = __webpack_require__(31);
 
-  XMLStreamWriter = __webpack_require__(73);
+  XMLStreamWriter = __webpack_require__(74);
 
   module.exports.create = function(name, xmldec, doctype, options) {
     var doc, root;
@@ -37604,7 +37599,7 @@ module.exports = __webpack_require__(65);
 
 
 /***/ }),
-/* 75 */
+/* 76 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -37639,7 +37634,7 @@ class State {
     reset() {
         //list of all blocks
         this.blocks = [];
-        this.blocks.push({ID:-1,SHAPE:null}); //this should not happen normally but this way nothing breaks during dev
+        this.blocks.push({ID:-1}); //this should not happen normally but this way nothing breaks during dev
         this.modus = MODUS.NONE;
         this.interrupted = false;
         //when opening a new context the previous is stored here
@@ -37684,17 +37679,10 @@ class State {
      * @param id the id of the block
      * @param shape the shape of the block
      */
-    addBlock(id,shape){
-        this.blocks.push({ID:id,SHAPE:shape})
+    addBlock(id){
+        this.blocks.push({ID:id})
     }
 
-    /**
-     * return the type of the last added block
-     * @returns {string}
-     */
-    getFirstBlockType(){
-        return this.blocks[0].SHAPE;
-    }
 
     /**
      * return the id of the last added block
@@ -37704,13 +37692,6 @@ class State {
         return this.blocks[0].ID;
     }
 
-    /**
-     * return the type of the last added block
-     * @returns {string}
-     */
-    getLastBlockType(){
-        return this.blocks[this.blocks.length-1].SHAPE;
-    }
 
     /**
      * return the id of the last added block
@@ -37766,7 +37747,7 @@ class State {
 
 
 /***/ }),
-/* 76 */
+/* 77 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -37774,13 +37755,14 @@ class State {
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_chevrotain___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_chevrotain__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1__LNParser__ = __webpack_require__(32);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__InfoLNVisitor__ = __webpack_require__(47);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_xmlbuilder__ = __webpack_require__(74);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_xmlbuilder__ = __webpack_require__(75);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_3_xmlbuilder___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_3_xmlbuilder__);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_4__IDManager__ = __webpack_require__(46);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__State__ = __webpack_require__(75);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_5__State__ = __webpack_require__(76);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_6__blocks__ = __webpack_require__(33);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_7__LNLexer__ = __webpack_require__(23);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__modifierAnalyser__ = __webpack_require__(77);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_8__modifierAnalyser__ = __webpack_require__(78);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_9__warnings__ = __webpack_require__(79);
 /**
  * Template for the visitor.
  *
@@ -37802,6 +37784,7 @@ let ChoiceLiteral = lntokens.ChoiceLiteral;
 
 
 //xml
+
 
 
 
@@ -37859,6 +37842,8 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
 
         //modifiers
         this.modifierAnalyser = new __WEBPACK_IMPORTED_MODULE_8__modifierAnalyser__["a" /* ModifierAnalyser */]();
+
+        this.warningsKeeper = new __WEBPACK_IMPORTED_MODULE_9__warnings__["a" /* WarningsKeeper */]();
     }
 
     getXML(cst) {
@@ -37884,7 +37869,7 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
             xml: this.xml.end({
                 pretty: true
             }),
-            warnings: {},
+            warnings: this.warningsKeeper.getList(),
         }
     }
 
@@ -37914,6 +37899,9 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
             //the flow was interrupted by a hat block or stand alone variable
             //so a new stack has to start
             if (this.state.isInterruptedStack()) {
+                if(i<ctx.block.length-1) { //no warning if nothing follows
+                    this.warningsKeeper.add(ctx.block[i], "started a new stack");
+                }
                 this.state.startStack();
             } else { //normal flow
                 this.xml = this.xml.ele('next');
@@ -37929,7 +37917,7 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
 
     atomic(ctx) {
         let description = this.infoVisitor.getString(ctx, "atomic");
-        ;
+
         //todo obtain modifiers
         let modifiers = this.modifierAnalyser.getMods(this.infoVisitor.getModifiers(ctx.annotations));
         if (this.isBuildInBlock(description, ctx, modifiers)) {
@@ -37948,6 +37936,9 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
                 this.createVariableBlock(ctx, description);
 
             } else if (this.isBooleanBlock(ctx, modifiers)) {
+                if(!modifiers.custom){
+                    this.warningsKeeper.add(ctx, "unkown boolean block, add ::custom if you want a custom block")
+                }
                 this.createCustomBooleanBlock(ctx, description);
 
             } else {
@@ -37988,7 +37979,7 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
 
 
     isBuildInBlock(description, ctx, modifiers) {
-        return description in __WEBPACK_IMPORTED_MODULE_6__blocks__["a" /* default */]; //todo: check modifier if it is a customblock
+        return !modifiers.user && !modifiers.custom && description in __WEBPACK_IMPORTED_MODULE_6__blocks__["a" /* default */];
     }
 
     isVariableBlock(ctx, modifiers) {
@@ -38110,17 +38101,19 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
     */
 
     ifelse(ctx) {
+        let blockid = this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "ifelse"));
         if (!ctx.Else) {
             this.xml = this.xml.ele('block', {
                 'type': 'control_if',
-                'id': this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "ifelse"))
+                'id': blockid,
             });
         } else {
             this.xml = this.xml.ele('block', {
                 'type': 'control_if_else',
-                'id': this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "ifelse"))
+                'id': blockid,
             });
         }
+        this.state.addBlock(blockid);
         this.xml = this.xml.ele('value', {
             'name': 'CONDITION'
         });
@@ -38144,24 +38137,30 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
     }
 
     forever(ctx) {
+        let blockid = this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "forever"));
         this.xml = this.xml.ele('block', {
             'type': 'control_forever',
-            'id': this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "forever")),
+            'id': blockid,
         }).ele('statement ', {
             'name': 'SUBSTACK'
         });
+        this.state.addBlock(blockid);
         this.visit(ctx.clause);
         this.xml = this.xml.up(); //close statement (stack will close block)
         this.visit(ctx.annotations);
+        this.interruptStack();
+
     }
 
     repeat(ctx) {
+        let blockid = this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "repeat"));
         this.xml = this.xml.ele('block', {
             'type': 'control_repeat',
-            'id': this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "repeat")),
+            'id': blockid,
         }).ele('value', {
             'name': 'TIMES'
         });
+        this.state.addBlock(blockid);
         this.visit(ctx.argument);
         this.xml = this.xml.up().ele('statement ', {
             'name': 'SUBSTACK'
@@ -38172,12 +38171,14 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
     }
 
     repeatuntil(ctx) {
+        let blockid = this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "repeatuntil"));
         this.xml = this.xml.ele('block', {
             'type': 'control_repeat_until',
-            'id': this.idManager.getNextBlockID(this.infoVisitor.getID(ctx, "repeatuntil")),
+            'id': blockid,
         }).ele('value', {
             'name': 'CONDITION'
         });
+        this.state.addBlock(blockid);
         this.visit(ctx.condition);
         this.xml = this.xml.up().ele('statement ', {
             'name': 'SUBSTACK'
@@ -38305,7 +38306,8 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
         }).ele('field', {
             'name': 'VARIABLE',
             'id': varID,
-        }, description).up()
+        }, description).up();
+        this.state.addBlock(blockID);
     }
 
     createListBlock(ctx, description) {
@@ -38317,7 +38319,8 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
         }).ele('field', {
             'name': 'LIST',
             'id': varID,
-        }, description).up()
+        }, description).up();
+        this.state.addBlock(blockID);
     }
 
     createCustomReporterBlock(ctx, description) {
@@ -38329,7 +38332,8 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
         }).ele('field', {
             'name': 'VALUE',
             'id': varID,
-        }, description).up()
+        }, description).up();
+        this.state.addBlock(blockID);
     }
 
     createCustomBooleanBlock(ctx, description) {
@@ -38341,7 +38345,8 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
         }).ele('field', {
             'name': 'VALUE',
             'id': varID,
-        }, description).up()
+        }, description).up();
+        this.state.addBlock(blockID);
     }
 
 }
@@ -38351,7 +38356,7 @@ class XMLLNVisitor extends BaseCstVisitorWithDefaults {
 
 
 /***/ }),
-/* 77 */
+/* 78 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -38423,12 +38428,27 @@ class customModifierExtractor extends ModifierExtractor {
     }
 }
 
+class varModifierExtractor extends ModifierExtractor {
+    containsKey(modifierToken) {
+        return modifierToken.image.match(/::user-defined/i);
+    }
+
+    extractParameters(modifierToken) {
+        return {}
+    }
+
+    getName() {
+        return "user"
+    }
+}
+
 class ModifierAnalyser {
     constructor(ctx, informationVisitor) {
         this.infoVisitor = informationVisitor;
         this.modifierExtractors = [];
         this.modifierExtractors.push(new listModifierExtractor());
         this.modifierExtractors.push(new customModifierExtractor());
+        this.modifierExtractors.push(new varModifierExtractor());
     }
 
     getMods(modifierList) {
@@ -38451,7 +38471,46 @@ class ModifierAnalyser {
 
 
 /***/ }),
-/* 78 */
+/* 79 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/**
+ * Warnings.
+ *
+ * An object that determines the structure of the warnings.
+ *
+ * @file   This files defines the WarningsKeeper class.
+ * @author Ellen Vanhove.
+ */
+
+class WarningsKeeper {
+
+    constructor(informationVisitor) {
+        this.reset();
+    }
+
+    reset(){
+        this.list = [];
+    }
+
+    add(ctx,msg){
+        this.list.push({
+            msg:msg,
+            ctx:ctx,
+        })
+    }
+
+    getList(){
+        return this.list;
+    }
+
+}
+/* harmony export (immutable) */ __webpack_exports__["a"] = WarningsKeeper;
+
+
+/***/ }),
+/* 80 */
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
@@ -38464,17 +38523,29 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 /* harmony export (immutable) */ __webpack_exports__["changeValue"] = changeValue;
 /* harmony export (immutable) */ __webpack_exports__["createWorkspace"] = createWorkspace;
 /* harmony export (immutable) */ __webpack_exports__["fitBlocks"] = fitBlocks;
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_jquery__ = __webpack_require__(48);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_jquery__ = __webpack_require__(49);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_jquery___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_jquery__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_scratch_blocks__ = __webpack_require__(49);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_scratch_blocks__ = __webpack_require__(50);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_1_scratch_blocks___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_1_scratch_blocks__);
-/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__parser_parserUtils_js__ = __webpack_require__(50);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_2__parser_parserUtils_js__ = __webpack_require__(51);
+/* harmony import */ var __WEBPACK_IMPORTED_MODULE_3__config_config__ = __webpack_require__(48);
 
 
 
 
-function scratchify(clasz='scratch') {
-    __WEBPACK_IMPORTED_MODULE_0_jquery___default()('.'+clasz).each(function(i, obj) {
+
+
+const LOCALE_ATTR ="blocks-locale";
+const SCALE_ATTR ="blocks-scale";
+
+/**
+ *
+ * @param selector see: https://www.w3schools.com/jquery/jquery_ref_selectors.asp
+ * @param properties see: DEFAULT_PROPERTIES
+ */
+function scratchify(selector='.scratch',properties={}) {
+    let userDefaultProperties=mergeProperties(properties,DEFAULT_PROPERTIES);
+    __WEBPACK_IMPORTED_MODULE_0_jquery___default()(selector).each(function(i, obj) {
         let id = __WEBPACK_IMPORTED_MODULE_0_jquery___default()(this).attr('id');
         if (!id) {
             id = "workspace_" + i;
@@ -38483,8 +38554,19 @@ function scratchify(clasz='scratch') {
         }
         //create the div to inject the workspace in
         __WEBPACK_IMPORTED_MODULE_0_jquery___default()(this).parent().append(__WEBPACK_IMPORTED_MODULE_0_jquery___default()("<div class=blocklyDiv id=" + id + "></div>"));
-
-        let workspace = createWorkspace(id);
+        let extracted = {};
+        let locale = __WEBPACK_IMPORTED_MODULE_0_jquery___default()(this).attr(LOCALE_ATTR);
+        if(locale) {
+            extracted.locale = locale;
+        }
+        let scale = __WEBPACK_IMPORTED_MODULE_0_jquery___default()(this).attr(SCALE_ATTR);
+        if(scale) {
+            extracted.zoom = {
+                startScale: scale
+            };
+        }
+        let prop=mergeProperties(extracted,userDefaultProperties);
+        let workspace = createWorkspace(id,prop);
         //do parsing
         let text = __WEBPACK_IMPORTED_MODULE_0_jquery___default()(this).text();
         //remove the text
@@ -38496,10 +38578,10 @@ function scratchify(clasz='scratch') {
             //add to this workspace
             let dom = Blockly.Xml.textToDom(xml);
             Blockly.Xml.domToWorkspace(dom, workspace);
-            //workspace.cleanUp();
+            workspace.cleanUp();
         }
         //rescale the workspace to fit to the blocks
-        fitBlocks(workspace, id);
+        fitBlocks(workspace, id,prop);
         storeWorkspace(id, workspace);
     });
 }
@@ -38533,26 +38615,61 @@ function changeValue(id, blockID, value) {
     field.setText(value);
 }
 
-function createWorkspace(workspaceName) {
-    return __WEBPACK_IMPORTED_MODULE_1_scratch_blocks___default.a.inject(workspaceName, {
-        toolbox: '<xml></xml>',
-        'scrollbars': false,
-        'trashcan': false,
-        'readOnly': true,
-        media: 'static/blocks-media/', //flag
-        colours: {
-            fieldShadow: 'rgba(255, 255, 255, 1)'
-        },
-        zoom: {
-            startScale: 0.5
-        }
-    });
+const DEFAULT_PROPERTIES = {
+    //this is exactly the same as blockly/scratchblocks properties
+    readOnly: true,
+    toolbox: '<xml></xml>',
+    scrollbars: false,
+    trashcan: false,
+    comments: true,
+    media: __WEBPACK_IMPORTED_MODULE_3__config_config__["a" /* MEDIA */],
+    colours: {
+        fieldShadow: 'rgba(255, 255, 255, 1)'
+    },
+    zoom: {
+        startScale: 0.5
+    },
+    // ----
+    //extra locale
+    locale: "en",
+};
+/* harmony export (immutable) */ __webpack_exports__["DEFAULT_PROPERTIES"] = DEFAULT_PROPERTIES;
+
+
+function createWorkspace(workspaceName,properties=DEFAULT_PROPERTIES) {
+    __WEBPACK_IMPORTED_MODULE_1_scratch_blocks___default.a.ScratchMsgs.setLocale(properties.locale);
+    return __WEBPACK_IMPORTED_MODULE_1_scratch_blocks___default.a.inject(workspaceName, properties);
 }
 
-function fitBlocks(workspace, id) {
-    var metrics = workspace.getMetrics();
-    __WEBPACK_IMPORTED_MODULE_0_jquery___default()('#' + id).css('width', (metrics.contentWidth + 10) + 'px')
-    __WEBPACK_IMPORTED_MODULE_0_jquery___default()('#' + id).css('height', (metrics.contentHeight + 10) + 'px')
+function mergeProperties(properties, defaultprops){
+    let prop = {};
+    for(let p in defaultprops){
+        if(properties.hasOwnProperty(p)){
+            prop[p] = properties[p];
+        }else{
+            prop[p] = defaultprops[p];
+        }
+    }
+    return prop;
+}
+
+function fitBlocks(workspace, id,properties) {
+    let isHead = false;
+    //get the topblocks, this are the beginning of stacks. they are ordered by location.
+    let topBlocks=workspace.getTopBlocks(true);
+    if(topBlocks[0]) {
+        isHead = topBlocks[0].startHat_;
+    }
+    let metrics = workspace.getMetrics(); //is not dependent on the location of the workspace
+    if(isHead){
+        __WEBPACK_IMPORTED_MODULE_0_jquery___default()('#' + id).css('height', (metrics.contentHeight + 20*properties.zoom.startScale) + 'px');
+        //translate the whole workspace (like dragging in the live view)
+        workspace.translate(5,20*properties.zoom.startScale);
+    }else{
+        __WEBPACK_IMPORTED_MODULE_0_jquery___default()('#' + id).css('height', (metrics.contentHeight + 10) + 'px');
+        workspace.translate(5,5);
+    }
+    __WEBPACK_IMPORTED_MODULE_0_jquery___default()('#' + id).css('width', (metrics.contentWidth + 10) + 'px');
     __WEBPACK_IMPORTED_MODULE_1_scratch_blocks___default.a.svgResize(workspace);
 }
 

@@ -35,7 +35,7 @@ function makeIMG(name) {
           });
         }
 
-        await screenshotDOMElement('table', 16);
+        await screenshotDOMElement('body', 16);
         await browser.close()
     })()
 }

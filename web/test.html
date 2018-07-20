@@ -14,15 +14,14 @@
   <!--[if lt IE 9]>
     <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
   <![endif]-->
-    <script type="text/javascript" src="javascript/ScratchLN.js" charset="utf-8"></script>
+      <script type="text/javascript" src="javascript/ScratchLN.js" charset="utf-8"></script>
   <script>
   window.onload = function() {
-    scratchLN.scratchify();
+    scratchLN.scratchify(".scratch",{media: 'static/blocks-media/',zoom: {
+        startScale: 1  //zoomlevel
+    }});
   };
-  </script>
-  
-  <script>
-  </script>
+  </script> 
 </head>
 <body>
 <h1 id="markdown-example">Markdown example</h1>
